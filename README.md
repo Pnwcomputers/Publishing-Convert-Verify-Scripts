@@ -1,37 +1,49 @@
-# 📘 KDP Paperback PDF Build Script (Pandoc + XeLaTeX)
+# 📘 Book Publishing Build Scripts
 
-## 🧱 Print-Ready PDF Pipeline
-### Compiles a multi-part Markdown book into an Amazon KDP-compliant paperback PDF
-#### Built for real-world publishing pain: margins, image scaling, code overflow, and deterministic chapter ordering
+## KDP Paperback PDF + Google Play EPUB Pipeline
+### Two-script toolkit for self-publishing across Amazon KDP and Google Play Books
+#### Built for real-world publishing pain: margins, image scaling, code overflow, XHTML compliance, and corrupt image repair
+
+---
+
+## 🗂️ SCRIPTS IN THIS REPO
+
+| Script | Purpose | Output |
+|---|---|---|
+| `build_book_template.py` | Compiles Markdown → print-ready PDF for Amazon KDP | `build/Your_Book_KDP.pdf` |
+| `epub_google_play_fix.py` | Validates and auto-fixes EPUB for Google Play Books | `Your_Book_googleplay.epub` |
 
 ---
 
 ## 🎯 START HERE
 
-### ✅ What this repo does
-This repo contains a Python build script (`build_book_template.py`) that:
+### What these scripts do
+
+**`build_book_template.py`** — PDF pipeline:
 - Collects Markdown chapters from your book's folder structure
 - Preprocesses Markdown to prevent common KDP/PDF formatting failures
 - Builds a single print-ready PDF using **Pandoc + XeLaTeX**
 - Outputs your final PDF to `./build/`
 
-### 📄 Output file
-- `build/Your_Book_KDP.pdf` *(filename set by `PDF_OUTPUT` in the script)*
+**`epub_google_play_fix.py`** — EPUB compliance fixer:
+- Extracts and inspects your existing `.epub` file
+- Checks all Google Play Books publishing requirements
+- Auto-fixes the issues it can; clearly reports what needs manual attention
+- Repacks a clean, compliant EPUB ready for upload
 
 ---
 
-## 🚀 QUICK BUILD
+## 📦 SCRIPT 1 — KDP Paperback PDF
 
-### 1) Install dependencies
-You need:
+### Dependencies
 - **Python 3.8+**
 - **Pandoc** — https://pandoc.org
 - **XeLaTeX** (via MiKTeX, TeX Live, or MacTeX)
 
-### 2) Configure the script
-Open `build_book_template.py` and fill in the configuration section at the top. At minimum, set:
+### Configuration
+Open `build_book_template.py` and set the configuration section at the top:
 
-~~~python
+```python
 # Tool paths
 PANDOC_BIN   = r"C:\Program Files\Pandoc\pandoc.exe"       # or "pandoc" on Linux/macOS
 XELATEX_BIN  = r"C:\Program Files\MiKTeX\miktex\bin\x64\xelatex.exe"  # or "xelatex"
@@ -43,65 +55,65 @@ BOOK_AUTHOR   = "Author Name"
 BOOK_YEAR     = "2025"
 PDF_OUTPUT    = "Your_Book_KDP.pdf"
 
-# Page size and margins (defaults are 8.5x11 with KDP-safe margins)
+# Page size — 8.5x11 with KDP-safe margins (default)
 PAPER_WIDTH   = "8.5in"
 PAPER_HEIGHT  = "11in"
 
-# Define your parts/chapters (see BOOK STRUCTURE section below)
+# Define your parts/chapters
 PARTS = [...]
 APPENDICES = [...]
-~~~
+```
 
-### 3) Run the build (from repo root)
-~~~bash
+### Running the PDF build
+
+```bash
 python3 build_book_template.py
-~~~
+```
 
-Windows alternative:
-~~~powershell
+Windows:
+```powershell
 py build_book_template.py
-~~~
+```
 
-Expected console output:
-- `Build Mode: 8.5x11 KDP Paperback`
-- `+ Chapter 1 - Introduction.md`
-- `>> Building PDF via Pandoc + XeLaTeX...`
-- `BUILD COMPLETE: build/Your_Book_KDP.pdf`
+Expected output:
+```
+Build Mode: 8.5x11 KDP Paperback
++ Chapter 1 - Getting Started.md
+...
+>> Building PDF via Pandoc + XeLaTeX...
+BUILD COMPLETE: build/Your_Book_KDP.pdf
+```
 
 ---
 
 ## 🗂️ BOOK STRUCTURE
 
 ### Folder layout
-The script auto-discovers `.md` files inside whatever part folders you define in `PARTS`. A typical layout looks like this:
 
-~~~text
+```text
 /
 ├── Part I - Introduction/
 │   ├── Chapter 1 - Getting Started.md
 │   └── Chapter 2 - Core Concepts.md
 ├── Part II - Core Topics/
-│   ├── Chapter 3 - Topic A.md
-│   └── Chapter 4 - Topic B.md
-├── Part III - Advanced Topics/
-│   └── Chapter 5 - Deep Dive.md
+│   └── Chapter 3 - Topic A.md
 ├── Appendices/
 │   ├── AppendixA-Reference.md
 │   └── AppendixB-Glossary.md
 ├── images/
 │   └── diagram.png
-├── build/              ← generated PDF appears here
-└── build_book_template.py
-~~~
+├── build/                        ← KDP PDF appears here
+├── build_book_template.py
+└── epub_google_play_fix.py
+```
 
-### Defining your parts in the script
-Edit the `PARTS` list to match your actual folder names:
+### Defining parts in the script
 
-~~~python
+```python
 PARTS = [
     {
-        "folder":   "Part I - Introduction",       # folder name on disk
-        "title":    "Part I: Introduction",         # printed in the PDF
+        "folder":   "Part I - Introduction",
+        "title":    "Part I: Introduction",
         "subtitle": "Overview and foundational concepts.",
     },
     {
@@ -115,79 +127,109 @@ PARTS = [
 APPENDICES = [
     "Appendices/AppendixA-Reference.md",
     "Appendices/AppendixB-Glossary.md",
-    # Set to [] if your book has no appendices
 ]
-~~~
-
-### How files are collected
-- Recursively scans each part folder
-- Includes `*.md` files only
-- Sorts filenames using natural ordering (so `Chapter 2` comes before `Chapter 10`)
-- Prefixes prepared files with a counter (`001_`, `002_`, etc.) to enforce deterministic order in Pandoc
-
-**Tip:** Use numeric prefixes in your filenames (e.g., `001_Intro.md`, `010_Core.md`) to lock the sort order regardless of filename wording.
+```
 
 ---
 
-## 🧠 WHAT THE SCRIPT DOES (UNDER THE HOOD)
+## 🧠 WHAT THE PDF SCRIPT DOES (UNDER THE HOOD)
 
-### Stage 1 — Preprocess Markdown (KDP/PDF hardening)
+### Stage 1 — Preprocess Markdown
 The `preprocess_markdown()` function runs before Pandoc and handles:
 
-#### 1) YAML Frontmatter Stripping
-Genuine YAML frontmatter blocks (those containing `key: value` pairs) are stripped so Pandoc doesn't get confused by per-file metadata. Decorative `---` divider lines are also removed — Pandoc misinterprets them as table-row separators, which causes the "narrow column" layout bug.
-
-#### 2) HTML `<img>` → Markdown image conversion
-~~~html
-<img src="images/foo.png">
-~~~
-becomes:
-~~~markdown
-![](images/foo.png)
-~~~
-
-#### 3) Image path normalization
-For images like:
-~~~markdown
-![Alt](../../images/My%20Image.png)
-~~~
-The script:
-- URL-decodes `%20` → space
-- Strips leading `../` segments so the path resolves relative to the repo root
-- Removes any leading `/`
-
-Result:
-~~~markdown
-![Alt](images/My Image.png)
-~~~
-
-#### 4) Zero-width space removal
-Strips `\u200B` characters — KDP flags these as non-printable markup.
-
-#### 5) Internal `.md` cross-link conversion
-Links like `[Chapter 4](../../Part II/Chapter4.md)` are meaningless in a print PDF and render as broken hyperlinks. They are replaced with bold text: `**Chapter 4**`.
-
-#### 6) Heading normalization
-Chapter and Appendix headings that are incorrectly set as H2+ are promoted to H1 to ensure correct PDF structure and table of contents generation.
-
-#### 7) Code block hard-wrapping
-Lines inside fenced code blocks that exceed ~75 characters are hard-wrapped before Pandoc sees them — the primary defense against code overflowing into the right margin.
+1. **YAML Frontmatter Stripping** — Strips genuine YAML blocks so Pandoc doesn't get confused. Removes decorative `---` dividers that Pandoc misinterprets as table separators.
+2. **HTML `<img>` → Markdown image conversion** — `<img src="images/foo.png">` becomes `![](images/foo.png)`
+3. **Image path normalization** — URL-decodes `%20` → space, strips leading `../` segments
+4. **Zero-width space removal** — Strips `\u200B` characters (KDP flags these)
+5. **Internal `.md` link conversion** — Cross-chapter links are replaced with bold text (meaningless in print)
+6. **Heading normalization** — Promotes misleveled headings to H1 for correct TOC generation
+7. **Code block hard-wrapping** — Wraps lines >75 chars to prevent code overflowing the right margin
 
 ---
 
-## ⚙️ CONFIGURATION REFERENCE
+## 📦 SCRIPT 2 — Google Play Books EPUB Fixer
 
-### Book metadata
-| Variable | Description |
+### Dependencies
+
+```bash
+pip install Pillow lxml
+```
+
+Both are optional but strongly recommended:
+- **Pillow** — repairs corrupt PNG/JPEG image files properly
+- **lxml** — more robust XML parsing than Python stdlib
+
+### Usage
+
+```bash
+# Check-only mode — see all issues without changing anything
+python epub_google_play_fix.py your_book.epub --check-only
+
+# Fix mode — auto-fixes all issues it can, outputs a new file
+python epub_google_play_fix.py your_book.epub
+
+# Custom output name
+python epub_google_play_fix.py your_book.epub -o your_book_googleplay.epub
+```
+
+### What it checks and fixes
+
+| Check | Auto-Fix |
 |---|---|
-| `BOOK_TITLE` | Title printed on the cover and in headers |
-| `BOOK_SUBTITLE` | Subtitle (appears on title page) |
-| `BOOK_AUTHOR` | Author name |
-| `BOOK_YEAR` | Copyright year |
-| `PDF_OUTPUT` | Output filename inside `./build/` |
+| `<br>`, `<img>`, `<hr>` not self-closed (XHTML requires `<br/>`) | ✅ |
+| Manifest `media-type` mismatches | ✅ |
+| Files on disk missing from OPF manifest | ✅ |
+| Manifest entries pointing to missing files | ⚠ Reports only |
+| Corrupt PNG/JPEG images | ✅ via Pillow |
+| Missing OPF metadata (title, author, language, identifier) | ✅ |
+| `mimetype` file wrong, missing, or has BOM | ✅ |
+| Missing UTF-8 encoding declaration in XHTML | ✅ |
+| Missing XHTML namespace on `<html>` tag | ✅ |
+| CSS wrong `@charset` declaration | ✅ |
+| Broken spine references | ✅ |
+| Duplicate IDs across chapters | ⚠ Reports only |
+| Filenames with spaces or non-ASCII characters | ⚠ Reports only |
+| No cover image declared | ⚠ Reports only |
+
+### Understanding the output
+
+```
+── Manifest & Files ──────────────────────────────────
+  ✗ ERROR:   Image file is corrupt or wrong format: media/file22.png
+  ✔ FIXED:   Re-saved media/file22.png as valid PNG
+
+── XHTML Content ─────────────────────────────────────
+  ✔ FIXED:   Fixed void tags in ch004.xhtml
+
+════════════════════════════════════════════════════════════
+  Errors:   0
+  Warnings: 0
+  Fixed:    2
+════════════════════════════════════════════════════════════
+
+✅ Fixed EPUB: your_book_googleplay.epub
+```
+
+- `✔ FIXED` means the issue was resolved automatically in the output file
+- `✗ ERROR` with no corresponding `✔ FIXED` means manual intervention is needed
+- `⚠ WARNING` items are non-blocking but worth reviewing
+
+### After running the fixer
+
+1. Upload `The_Computer_Handbook_googleplay.epub` to Google Play Books Partner Center
+2. For extra pre-upload validation, run epubcheck:
+```bash
+java -jar epubcheck.jar your_book_googleplay.epub
+```
+epubcheck download: https://github.com/w3c/epubcheck/releases
+
+---
+
+## ⚙️ PDF CONFIGURATION REFERENCE
 
 ### Page geometry
-Defaults are set for **8.5×11 in (US Letter)** with margins that meet KDP minimums for 301–500 page books. Change `PAPER_WIDTH` / `PAPER_HEIGHT` and the margin variables for other trim sizes (e.g., A4, 6×9).
+
+Defaults are **8.5×11 in (US Letter)** with margins that meet KDP minimums for 301–500 page books.
 
 | Variable | Default | KDP Minimum |
 |---|---|---|
@@ -196,9 +238,11 @@ Defaults are set for **8.5×11 in (US Letter)** with margins that meet KDP minim
 | `TOP_MARGIN` | `1in` | 0.25in |
 | `BOTTOM_MARGIN` | `0.75in` | 0.25in |
 
-KDP margin requirements vary by page count and trim size. Always verify at: https://kdp.amazon.com/en_US/help/topic/G201834190
+KDP margin requirements vary by page count and trim size. Always verify at:
+https://kdp.amazon.com/en_US/help/topic/G201834190
 
 ### Fonts
+
 | Variable | Default | Notes |
 |---|---|---|
 | `MAIN_FONT` | `Cambria` | Body text — try `Georgia`, `EB Garamond` |
@@ -209,59 +253,59 @@ Fonts must be installed on your system. XeLaTeX embeds them automatically.
 
 ---
 
-## 🖼️ IMAGES: HOW TO NOT GET BURNED
+## 🖼️ IMAGES
 
-Pandoc runs with `--resource-path=<repo_root>`, so image references should resolve from the repo root.
+Pandoc runs with `--resource-path=<repo_root>`, so image paths resolve from the repo root.
 
-### ✅ Recommended image patterns
-~~~markdown
+### Recommended patterns
+```markdown
 ![Alt text](images/diagram.png)
-![Alt text](Part I - Introduction/images/picture.png)
-~~~
+![Alt text](Part I - Computer Fundamentals/images/picture.png)
+```
 
-### 🚫 Avoid if possible
+### Avoid
 - Absolute paths like `/images/foo.png`
-- Deep relative paths like `../../../images/foo.png` *(the script attempts to rewrite these, but correctness depends on your actual folder layout)*
+- Deep relative paths like `../../../images/foo.png`
 
-### Image size limits
-The script caps images in LaTeX to prevent KDP margin violations:
+### Image size limits (PDF)
+The script caps images to prevent KDP margin violations:
 - **Width:** max 80% of text width
 - **Height:** max 35% of text height (~3.2in on 8.5×11)
-
-This leaves room for the caption, float spacing, and surrounding text on the same page.
 
 ---
 
 ## 🧯 TROUBLESHOOTING
 
-### ❌ `pandoc: command not found`
-Pandoc is not installed or not on PATH.
-~~~bash
-pandoc --version    # verify installation
-~~~
-Reinstall from https://pandoc.org and reopen your terminal.
+### PDF Build
 
-### ❌ `xelatex not found` / LaTeX package errors
-TeX distribution missing or incomplete.
-~~~bash
-xelatex --version   # verify installation
-~~~
-Install MiKTeX / TeX Live / MacTeX. If MiKTeX prompts for missing packages during the build, allow the install (or pre-install the packages manually).
+**`pandoc: command not found`**
+Pandoc is not installed or not on PATH. Reinstall from https://pandoc.org.
 
-### ❌ A part folder is skipped with `[!] WARNING: Folder not found`
-The `"folder"` value in your `PARTS` list doesn't match the actual folder name on disk. Folder names are case-sensitive on Linux/macOS.
+**`xelatex not found` / LaTeX package errors**
+TeX distribution missing. Install MiKTeX / TeX Live / MacTeX.
 
-### ❌ Images missing from the PDF
-- Confirm the image file exists at the repo-root-relative path the Markdown references
-- Watch for case mismatches in filenames (Linux/macOS are case-sensitive)
-- Avoid unusual characters in filenames when possible
-- `%20`-encoded spaces are decoded automatically
+**`[!] WARNING: Folder not found`**
+The `"folder"` value in `PARTS` doesn't match the actual folder name on disk. Folder names are case-sensitive on Linux/macOS.
 
-### ❌ KDP preview says "Text/Image outside margins"
-Likely causes and fixes:
-- **Image too large** — reduce source image dimensions, or lower the `maxheight`/`maxwidth` percentages in `LATEX_HEADER`
-- **Table too wide** — simplify or convert to a list
-- **Long unbroken string** (URL, hash, base64, long variable name) — manually break it in Markdown, or add a `\linebreak` hint
+**KDP preview: "Text/Image outside margins"**
+- Image too large — lower the `maxheight`/`maxwidth` percentages in `LATEX_HEADER`
+- Table too wide — simplify or convert to a list
+- Long unbroken string (URL, hash) — manually break it in Markdown
+
+### EPUB Fixer
+
+**`Exception in Manifest & Files`**
+Run `pip install lxml` then retry. The stdlib XML parser can fail on malformed OPF files.
+
+**Image replaced with blank placeholder**
+`file22.png` (or another image) was too corrupt for Pillow to recover. Open the source image in any image editor, re-export it as PNG, and replace the placeholder in the fixed EPUB manually.
+
+**Still failing on Google Play after running the fixer**
+Run epubcheck for a full diagnostic report:
+```bash
+java -jar epubcheck.jar your_book_googleplay.epub
+```
+Paste the output here for help interpreting the results.
 
 ---
 
@@ -269,41 +313,44 @@ Likely causes and fixes:
 
 | Path | Description |
 |---|---|
-| `./build/Your_Book_KDP.pdf` | Final output PDF |
-| Temp directory (printed during build) | Prepared Markdown files + `header.tex` — deleted automatically after build |
+| `build/Your_Book_KDP.pdf` | Amazon KDP print-ready PDF |
+| `your_book_googleplay.epub` | Google Play Books compliant EPUB |
 
 ---
 
 ## 🧪 ADVANCED NOTES
 
-### Deterministic chapter ordering
-The script sorts files using natural ordering (so `Chapter 2` correctly precedes `Chapter 10`). To lock order unconditionally, use numeric prefixes in your filenames: `001_Intro.md`, `010_Core.md`, `120_Advanced.md`.
-
 ### Why XeLaTeX?
-XeLaTeX handles Unicode and system fonts far more reliably than pdfLaTeX, which matters for books with special characters, non-Latin scripts, or modern font choices.
+XeLaTeX handles Unicode and system fonts far more reliably than pdfLaTeX — important for books with special characters or modern font choices.
 
-### Changing trim size (e.g., A4, 6×9)
-Update `PAPER_WIDTH`, `PAPER_HEIGHT`, and the margin variables. Then verify KDP's margin requirements for that trim size and page count range before uploading.
+### Deterministic chapter ordering
+Files are sorted using natural ordering (`Chapter 2` before `Chapter 10`). To lock order unconditionally, use numeric prefixes: `001_Intro.md`, `010_Core.md`.
+
+### Changing trim size (e.g., 6×9)
+Update `PAPER_WIDTH`, `PAPER_HEIGHT`, and the margin variables. Verify KDP's margin requirements for that trim size before uploading.
 
 ### geometry is loaded once
-`geometry` is passed exclusively through Pandoc's `-V` flags — it is not loaded in `LATEX_HEADER`. This prevents the double-loading conflict that causes cryptic LaTeX errors.
+`geometry` is passed exclusively through Pandoc's `-V` flags — not in `LATEX_HEADER`. This prevents the double-loading conflict that causes cryptic LaTeX errors.
 
 ---
 
-## ⚖️ LEGAL / PUBLISHING DISCLAIMER
+## ⚖️ PUBLISHING DISCLAIMER
 
-This build pipeline produces a PDF file. You are responsible for:
-- Verifying layout in KDP Preview before publishing
+These scripts produce output files. You are responsible for:
+- Verifying layout in KDP Previewer before publishing
+- Reviewing the fixed EPUB in a reader (e.g., Calibre, Apple Books) before uploading
 - Ensuring you have rights to all included content (text and images)
-- Complying with Amazon KDP print publishing requirements
+- Complying with Amazon KDP and Google Play Books publishing requirements
 
 ---
 
 ## 🙏 CREDITS
 
 ### Toolchain
-- **Pandoc** — Markdown-to-LaTeX-to-PDF conversion engine
+- **Pandoc** — Markdown-to-LaTeX-to-PDF conversion
 - **XeLaTeX** — Unicode-friendly LaTeX engine
+- **Pillow** — Python image processing for EPUB image repair
+- **lxml** — Fast, robust XML/XHTML parsing
 
 ### LaTeX packages used
 `geometry`, `graphicx`, `fancyhdr`, `longtable`, `booktabs`, `fvextra`, `float`, `placeins`, `caption`, `xurl`
@@ -312,13 +359,19 @@ This build pipeline produces a PDF file. You are responsible for:
 
 ## ✅ TL;DR
 
-1. Set your book metadata, font choices, page size, and folder structure in the script
-2. Put your chapter Markdown files into the folders you defined in `PARTS`
-3. Run:
-~~~bash
+### Build the KDP PDF
+```bash
 python3 build_book_template.py
-~~~
-4. Grab your PDF:
-~~~text
-build/Your_Book_KDP.pdf
-~~~
+# → build/Your_Book_KDP.pdf
+```
+
+### Fix the EPUB for Google Play
+```bash
+pip install Pillow lxml
+python epub_google_play_fix.py your_book.epub
+# → your_book_googleplay.epub
+```
+
+### Then upload
+- `Your_Book_KDP.pdf` → Amazon KDP
+- `your_book_googleplay.epub` → Google Play Books Partner Center
