@@ -1,0 +1,37 @@
+# --- Build Artifacts (PDF/EPUB) ---
+# Do not track the final generated books
+/build/
+*.pdf
+*.epub
+*.mobi
+*.azw3
+
+# --- Python / Development ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# --- LaTeX / Pandoc Temps ---
+# If XeLaTeX crashes, it may leave these behind
+*.aux
+*.log
+*.out
+*.toc
+*.tex
+*.pdf_tex
+*.fdb_latexmk
+*.fls
+
+# --- Metadata & OS Clutter ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Local Drafts / Private Content ---
+# If you keep your actual manuscript in a draft folder
+/drafts/
+private_notes.md
